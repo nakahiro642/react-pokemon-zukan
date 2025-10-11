@@ -1,5 +1,5 @@
 // src/pages/PokemonList.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { apiQueryKeys } from '../queryKeys';
 import { fetchPokemonListWithJapaneseNames } from '../api/pokemonWithJapaneseName';
@@ -9,6 +9,8 @@ import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
 const PokemonList: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const {
     data,
     fetchNextPage,
@@ -47,48 +49,89 @@ const PokemonList: React.FC = () => {
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  if (isLoading) return <PokemonListSkeleton />;
-  if (status === 'error') return <div>エラーが発生しました</div>;
+  // フィルタリング処理
+  const allPokemon = data?.pages.flatMap(page => page.results) || [];
+  
+  const filteredPokemon = allPokemon.filter((pokemon: PokemonWithJapaneseName) => {
+    // 検索語が空の場合はすべて表示
+    if (searchTerm === '') {
+      return true;
+    }
+    
+    // 検索語がある場合、部分一致で検索
+    const searchLower = searchTerm.toLowerCase().trim();
+    const matchesSearch = pokemon.japaneseName.toLowerCase().includes(searchLower) ||
+                         pokemon.name.toLowerCase().includes(searchLower) ||
+                         pokemon.number.includes(searchTerm.trim());
+    
+    return matchesSearch;
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div key={index} className="bg-white rounded-lg shadow p-4">
+              <Skeleton height={150} />
+              <Skeleton count={2} className="mt-2" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (status === 'error') return <div className="p-4 text-red-600">エラーが発生しました</div>;
 
   return (
     <div className="p-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {data?.pages.map((page) =>
-          page.results.map((pokemon: PokemonWithJapaneseName) => (
-            <PokemonCard key={pokemon.name} pokemon={pokemon} />
-          ))
+      
+      <div className="mb-6 space-y-4">
+  
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="ポケモン名で検索..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        
+        {searchTerm && (
+          <div className="text-sm text-gray-600">
+            {filteredPokemon.length}件のポケモンが見つかりました
+          </div>
         )}
       </div>
-      <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
-        {isFetchingNextPage ? <Loader /> : hasNextPage ? '続きを読み込む' : ''}
-      </div>
-    </div>
-  );
-};
 
-// ローダーコンポーネント
-const Loader: React.FC = () => (
-  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
-);
-
-const PokemonListSkeleton: React.FC = () => {
-  return (
-    <div className="p-4">
+    
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {[...Array(18)].map((_, index) => (
-          <div key={index} className="bg-white shadow-md rounded-lg p-4">
-            <Skeleton height={120} />
-            <Skeleton width={80} height={20} className="mt-2" />
-            <Skeleton width={100} height={16} className="mt-1" />
-          </div>
+        {filteredPokemon.map((pokemon: PokemonWithJapaneseName) => (
+          <PokemonCard key={`${pokemon.name}-${pokemon.number}`} pokemon={pokemon} />
         ))}
       </div>
-      <div className="h-10 flex items-center justify-center">
-        <Skeleton width={100} height={20} />
-      </div>
+
+  
+      {!searchTerm && (
+        <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
+          {isFetchingNextPage ? (
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <span>読み込み中...</span>
+            </div>
+          ) : hasNextPage ? (
+            <span className="text-gray-500">続きを読み込む</span>
+          ) : (
+            <span className="text-gray-400">すべて表示しました</span>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
 export default PokemonList;
-
