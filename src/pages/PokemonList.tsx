@@ -13,6 +13,18 @@ const PokemonList: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [allPokemonForSearch, setAllPokemonForSearch] = useState<PokemonWithJapaneseName[]>([]);
   
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+  };
+  
+  const handleCompositionStart = () => {
+  };
+  
+  const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    setSearchTerm(e.currentTarget.value);
+  };
+  
   const {
     data,
     fetchNextPage,
@@ -39,7 +51,7 @@ const PokemonList: React.FC = () => {
         console.log('全ポケモンデータ取得開始...');
         const batchSize = 100;
         const allPokemon: PokemonWithJapaneseName[] = [];
-        
+
         const initialResponse = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1');
         const initialData = await initialResponse.json();
         const totalCount = Math.min(initialData.count, 500); 
@@ -81,21 +93,40 @@ const PokemonList: React.FC = () => {
 
   const filteredPokemon = React.useMemo(() => {
     if (!searchTerm.trim()) {
-      // 検索がない場合は無限スクロールで読み込んだデータを表示
-      return data?.pages.flatMap(page => page.results) || [];
+
+      const result = data?.pages.flatMap(page => page.results) || [];
+      console.log('検索なし - 表示件数:', result.length);
+      return result;
     }
     
-    // 検索がある場合は全ポケモンから検索
+  
     const searchLower = searchTerm.toLowerCase().trim();
+    console.log('検索中:', searchLower, 'データ数:', allPokemonForSearch.length);
     
-    return allPokemonForSearch.filter((pokemon: PokemonWithJapaneseName) => {
-      const matchesName = pokemon.japaneseName.toLowerCase().includes(searchLower) ||
-                         pokemon.name.toLowerCase().includes(searchLower);
-      const matchesNumber = pokemon.number.toString().includes(searchTerm.trim());
-      
-      return matchesName || matchesNumber;
-    });
+    const result = allPokemonForSearch
+      .filter((pokemon: PokemonWithJapaneseName) => {
+        const matchesName = pokemon.japaneseName.toLowerCase().includes(searchLower);
+        
+        return matchesName;
+      })
+      .sort((a, b) => parseInt(a.number) - parseInt(b.number)); // ポケモン番号順にソート
+    
+    console.log('検索結果:', result.length, '件', result.slice(0, 3).map(p => `No.${p.number} ${p.japaneseName}`));
+    return result;
   }, [data, searchTerm, allPokemonForSearch]);
+
+  
+  const prevSearchTermRef = useRef('');
+  useEffect(() => {
+    const currentSearch = searchTerm.trim();
+    const prevSearch = prevSearchTermRef.current;
+    
+    if (currentSearch && currentSearch !== prevSearch) {
+      window.scrollTo({ top: 0, behavior: 'instant' }); 
+    }
+    
+    prevSearchTermRef.current = currentSearch;
+  }, [filteredPokemon, searchTerm]);
 
   if (isLoading) {
     return (
@@ -122,9 +153,11 @@ const PokemonList: React.FC = () => {
           <div className="flex-1">
             <input
               type="text"
-              placeholder="ポケモン名で検索..."
+              placeholder="ポケモン名で検索（日本語のみ）..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
+              onCompositionStart={handleCompositionStart}
+              onCompositionEnd={handleCompositionEnd}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -142,7 +175,7 @@ const PokemonList: React.FC = () => {
       {isSearchOpen && (
         <div 
           className="fixed inset-0 z-40 flex items-start justify-center pt-20 px-4 animate-fadeIn"
-          style={{backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+          style={{backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
           onClick={() => setIsSearchOpen(false)}
         >
           <div 
@@ -161,9 +194,11 @@ const PokemonList: React.FC = () => {
             
             <input
               type="text"
-              placeholder="ポケモン名で検索..."
+              placeholder="ポケモン名で検索（日本語のみ）..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
+              onCompositionStart={handleCompositionStart}
+              onCompositionEnd={handleCompositionEnd}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg"
               autoFocus
             />
