@@ -153,7 +153,7 @@ const PokemonList: React.FC = () => {
           <div className="flex-1">
             <input
               type="text"
-              placeholder="ポケモン名で検索（日本語のみ）..."
+              placeholder="ポケモン名で検索（日本語で入力）..."
               value={searchTerm}
               onChange={handleSearchChange}
               onCompositionStart={handleCompositionStart}
@@ -194,7 +194,7 @@ const PokemonList: React.FC = () => {
             
             <input
               type="text"
-              placeholder="ポケモン名で検索（日本語のみ）..."
+              placeholder="ポケモン名で検索（日本語で入力）..."
               value={searchTerm}
               onChange={handleSearchChange}
               onCompositionStart={handleCompositionStart}
